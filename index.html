@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Weather App</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="modern-bg"></div>
+  <div class="weather-card">
+    <div class="main-weather">
+      <div id="loadingSpinner" class="loading-spinner" style="display:none;"></div>
+      <div class="big-temp" id="temperature">--°C</div>
+      <div class="city-status">
+        <span class="city" id="location">Please enter a city to get weather</span>
+        <span class="date" id="date"></span>
+      </div>
+      <div class="weather-row">
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/482/482292.png"
+          id="weatherIcon"
+          alt="Weather Icon"
+          class="icon-img"
+        />
+        <span class="weather-desc" id="description"></span>
+      </div>
+    </div>
+    <div class="info-boxes">
+      <div class="info-single" id="feelsLike"></div>
+      <div class="info-single" id="humidity"></div>
+      <div class="info-single" id="wind"></div>
+      <div class="info-single" id="visibility"></div>
+      <div class="info-single" id="uv"></div>
+      <div class="info-single" id="pressure"></div>
+    </div>
+    <div id="messageBox" class="message-box">
+      Welcome! Search your city to see live weather.
+    </div>
+  </div>
+
+  <div class="search-bar-bottom">
+    <div class="search-bar-input-group">
+      <input
+        type="text"
+        id="cityInput"
+        placeholder="Enter a city"
+        autocomplete="off"
+      />
+      <button id="searchBtn">Search</button>
+      <ul id="suggestions" class="suggestions-list"></ul>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
