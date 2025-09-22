@@ -1,16 +1,24 @@
 const API_KEY = 'eea67c7fdbf4a33763174e12e6a32d63';
 
-// Search button click
-document.getElementById('searchBtn').addEventListener('click', () => {
-  const city = document.getElementById('cityInput').value.trim();
-  if (!city) {
+// Search button click & Enter key support
+const searchBtn = document.getElementById('searchBtn');
+const cityInput = document.getElementById('cityInput');
+
+searchBtn.addEventListener('click', () => handleSearch());
+cityInput.addEventListener('keyup', (e) => {
+  if (e.key === 'Enter') handleSearch();
+});
+
+function handleSearch() {
+  const place = cityInput.value.trim();
+  if (!place) {
     showMessage('Please enter a place name to search.');
     return;
   }
-  getCoordinates(city);
-});
+  getCoordinates(place);
+}
 
-// 1️⃣ Use OpenWeatherMap Geocoding API to get coordinates
+// 1️⃣ Get coordinates using OpenWeatherMap Geocoding API
 function getCoordinates(place) {
   const spinner = document.getElementById('loadingSpinner');
   spinner.style.display = 'block';
@@ -22,9 +30,10 @@ function getCoordinates(place) {
       spinner.style.display = 'none';
       if (data && data.length > 0) {
         const { lat, lon, name, state, country } = data[0];
-        getWeather(lat, lon, `${name}${state ? ', ' + state : ''}, ${country}`);
+        const displayName = `${name}${state ? ', ' + state : ''}, ${country}`;
+        getWeather(lat, lon, displayName);
       } else {
-        showMessage('Place not found. Please try another name!');
+        showMessage('Place not found. Try nearby city or correct spelling.');
       }
     })
     .catch(() => {
@@ -33,10 +42,11 @@ function getCoordinates(place) {
     });
 }
 
-// 2️⃣ Get weather by coordinates
+// 2️⃣ Get weather using coordinates
 function getWeather(lat, lon, displayName) {
   const spinner = document.getElementById('loadingSpinner');
   spinner.style.display = 'block';
+
   fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`)
     .then(res => res.json())
     .then(data => {
@@ -53,27 +63,32 @@ function getWeather(lat, lon, displayName) {
     });
 }
 
+// 3️⃣ Update UI
 function updateWeatherUI(data, placeName) {
   const temp = Math.round(data.main.temp);
   const condition = data.weather[0].main.toLowerCase();
 
-  document.getElementById('temperature').textContent = temp + '°C';
+  document.getElementById('temperature').textContent = `${temp}°C`;
   document.getElementById('location').textContent = placeName;
   document.getElementById('date').textContent = new Date().toLocaleString();
   document.getElementById('weatherIcon').src = getIconForCondition(condition);
   document.getElementById('weatherIcon').alt = condition;
-  document.getElementById('description').textContent = data.weather[0].description;
+  document.getElementById('description').textContent = capitalize(data.weather[0].description);
 
   document.getElementById('feelsLike').textContent = `Feels like: ${Math.round(data.main.feels_like)}°C`;
   document.getElementById('humidity').textContent = `Humidity: ${data.main.humidity}%`;
   document.getElementById('wind').textContent = `Wind: ${Math.round(data.wind.speed)} m/s`;
-  document.getElementById('visibility').textContent = `Visibility: ${data.visibility / 1000} km`;
+  document.getElementById('visibility').textContent = `Visibility: ${(data.visibility / 1000).toFixed(1)} km`;
   document.getElementById('uv').textContent = `UV Index: -`; // Optional
   document.getElementById('pressure').textContent = `Pressure: ${data.main.pressure} hPa`;
+
+  // Dynamic background
+  setDynamicBackground(condition, temp);
 
   showMessage(getMessageForCondition(condition, temp));
 }
 
+// Clear previous info
 function clearWeatherInfo() {
   document.getElementById('temperature').textContent = '--°C';
   document.getElementById('location').textContent = 'Searching...';
@@ -89,11 +104,32 @@ function clearWeatherInfo() {
   document.getElementById('pressure').textContent = '';
 }
 
-function showMessage(message) {
-  document.getElementById('messageBox').textContent = message;
+// Show message
+function showMessage(msg) {
+  document.getElementById('messageBox').textContent = msg;
 }
 
-// Icon and message helpers
+// Capitalize helper
+function capitalize(text) {
+  return text.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+}
+
+// Dynamic background
+function setDynamicBackground(condition, temp) {
+  const bg = document.querySelector('.modern-bg');
+  switch (condition) {
+    case 'clear': bg.style.background = 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)'; break;
+    case 'clouds': bg.style.background = 'linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%)'; break;
+    case 'rain': bg.style.background = 'linear-gradient(135deg, #4e54c8 0%, #8f94fb 100%)'; break;
+    case 'drizzle': bg.style.background = 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)'; break;
+    case 'thunderstorm': bg.style.background = 'linear-gradient(135deg, #373B44 0%, #4286f4 100%)'; break;
+    case 'snow': bg.style.background = 'linear-gradient(135deg, #e6dada 0%, #274046 100%)'; break;
+    case 'mist': case 'fog': bg.style.background = 'linear-gradient(135deg, #757F9A 0%, #D7DDE8 100%)'; break;
+    default: bg.style.background = 'linear-gradient(135deg, #43155c 0%, #a367dc 55%, #ff70a6 100%)';
+  }
+}
+
+// Weather icon helper
 function getIconForCondition(condition) {
   switch (condition) {
     case 'clear': return 'https://cdn-icons-png.flaticon.com/512/4814/4814716.png';
@@ -107,6 +143,7 @@ function getIconForCondition(condition) {
   }
 }
 
+// Message helper
 function getMessageForCondition(condition, temp) {
   switch (condition) {
     case 'rain': return "It's rainy! Carry umbrella and stay safe.";
