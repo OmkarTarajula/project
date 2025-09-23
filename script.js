@@ -1,15 +1,16 @@
-const PRIMARY_API_KEY = '49240382e83b4bdbabc70751252309'; 
-const SECONDARY_API_KEY = 'eea67c7fdbf4a33763174e12e6a32d63'; 
+const PRIMARY_API_KEY = '49240382e83b4bdbabc70751252309'; // World Weather Online
+const SECONDARY_API_KEY = 'eea67c7fdbf4a33763174e12e6a32d63'; // OpenWeatherMap
 
 let locationsData = { countries: {}, continents: {} };
 
 const searchBtn = document.getElementById('searchBtn');
 const cityInput = document.getElementById('cityInput');
 
+// Disable inputs until data loads
 searchBtn.disabled = true;
 cityInput.disabled = true;
 
-
+// Load locations.json (countries and continents)
 fetch('locations.json')
   .then(res => res.json())
   .then(data => {
@@ -105,8 +106,8 @@ function getMultipleLocationsWeather(locations, locationName) {
     });
 }
 
-
-function getWeatherDataPrimary(place, displayName) {
+// Primary API: World Weather Online
+function getWeatherDataPrimary(place, placeName) {
   clearWeatherInfo();
   const spinner = document.getElementById('loadingSpinner');
   spinner.style.display = 'block';
@@ -114,22 +115,23 @@ function getWeatherDataPrimary(place, displayName) {
   fetch(`https://api.worldweatheronline.com/premium/v1/weather.ashx?key=${PRIMARY_API_KEY}&q=${encodeURIComponent(place)}&format=json`)
     .then(res => res.json())
     .then(data => {
-      spinner.style.display = 'none';
       if (data.data && data.data.current_condition && data.data.current_condition.length > 0) {
-        updateWeatherUIWorldWeather(data.data.current_condition[0], displayName);
+        spinner.style.display = 'none';
+        updateWeatherUIWorldWeather(data.data.current_condition[0], placeName);
       } else {
-       
-        getWeatherDataSecondary(place);
+        // fallback to secondary API if no data found
+        getWeatherDataSecondary(place, placeName);
       }
     })
     .catch(() => {
       spinner.style.display = 'none';
-      getWeatherDataSecondary(place);
+      // fallback to secondary API on fetch error
+      getWeatherDataSecondary(place, placeName);
     });
 }
 
-
-function getWeatherDataSecondary(place) {
+// Secondary API: OpenWeatherMap
+function getWeatherDataSecondary(place, placeName) {
   const spinner = document.getElementById('loadingSpinner');
   spinner.style.display = 'block';
 
@@ -138,7 +140,7 @@ function getWeatherDataSecondary(place) {
     .then(data => {
       spinner.style.display = 'none';
       if (data.cod === 200) {
-        updateWeatherUIOpenWeatherMap(data, place);
+        updateWeatherUIOpenWeatherMap(data, placeName);
       } else {
         showMessage('Place not found in both APIs.');
       }
@@ -237,8 +239,7 @@ function setDynamicBackground(condition, temp) {
       bg.style.background = 'linear-gradient(135deg, #757F9A 0%, #D7DDE8 100%)';
       break;
     default:
-      bg.style.background =
-        'linear-gradient(135deg, #43155c 0%, #a367dc 55%, #ff70a6 100%)';
+      bg.style.background = 'linear-gradient(135deg, #43155c 0%, #a367dc 55%, #ff70a6 100%)';
   }
 }
 
