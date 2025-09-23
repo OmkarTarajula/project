@@ -1,13 +1,28 @@
-const API_KEY = 'eea67c7fdbf4a33763174e12e6a32d63';
+const API_KEY = '49240382e83b4bdbabc70751252309';
 
-// Search button click & Enter key support
+let locationsData = { countries: {}, continents: {} };
+
+// Load locations.json before enabling search
 const searchBtn = document.getElementById('searchBtn');
 const cityInput = document.getElementById('cityInput');
 
-searchBtn.addEventListener('click', () => handleSearch());
-cityInput.addEventListener('keyup', (e) => {
-  if (e.key === 'Enter') handleSearch();
-});
+searchBtn.disabled = true;
+cityInput.disabled = true;
+
+fetch('locations.json')
+  .then(res => res.json())
+  .then(data => {
+    locationsData = data;
+    searchBtn.disabled = false;
+    cityInput.disabled = false;
+    searchBtn.addEventListener('click', () => handleSearch());
+    cityInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') handleSearch();
+    });
+  })
+  .catch(() => {
+    showMessage('Failed to load locations data.');
+  });
 
 function handleSearch() {
   const place = cityInput.value.trim();
@@ -15,46 +30,93 @@ function handleSearch() {
     showMessage('Please enter a place name to search.');
     return;
   }
-  getCoordinates(place);
+
+  const lowerPlace = place.toLowerCase();
+
+  if (isContinentName(lowerPlace)) {
+    const cities = locationsData.continents[lowerPlace];
+    getMultipleLocationsWeather(cities, place);
+  } else if (isCountryName(lowerPlace)) {
+    const capital = getCapital(lowerPlace);
+    if (capital) {
+      getWeatherData(`${capital},${place}`);
+    } else {
+      getWeatherData(place);
+    }
+  } else {
+    getWeatherData(place);
+  }
 }
 
-// 1️⃣ Get coordinates using OpenWeatherMap Geocoding API
-function getCoordinates(place) {
-  const spinner = document.getElementById('loadingSpinner');
-  spinner.style.display = 'block';
+function isCountryName(name) {
+  return locationsData.countries.hasOwnProperty(name);
+}
+
+function isContinentName(name) {
+  return locationsData.continents.hasOwnProperty(name);
+}
+
+function getCapital(country) {
+  return locationsData.countries[country] || null;
+}
+
+// Query World Weather Online API for multiple cities and average results
+function getMultipleLocationsWeather(locations, locationName) {
+  if (!locations || locations.length === 0) {
+    showMessage(`No data for continent: ${locationName}`);
+    return;
+  }
+
   clearWeatherInfo();
-
-  fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(place)}&limit=10&appid=${API_KEY}`)
-    .then(res => res.json())
-    .then(data => {
-      spinner.style.display = 'none';
-      if (data && data.length > 0) {
-        const { lat, lon, name, state, country } = data[0];
-        const displayName = `${name}${state ? ', ' + state : ''}, ${country}`;
-        getWeather(lat, lon, displayName);
-      } else {
-        showMessage('Place not found. Try nearby city or correct spelling.');
-      }
-    })
-    .catch(() => {
-      spinner.style.display = 'none';
-      showMessage('API error. Check internet or API key.');
-    });
-}
-
-// 2️⃣ Get weather using coordinates
-function getWeather(lat, lon, displayName) {
   const spinner = document.getElementById('loadingSpinner');
   spinner.style.display = 'block';
 
-  fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`)
+  const fetches = locations.map(loc =>
+    fetch(`https://api.worldweatheronline.com/premium/v1/weather.ashx?key=${API_KEY}&q=${encodeURIComponent(loc)}&format=json`)
+      .then(res => res.json())
+  );
+
+  Promise.all(fetches)
+    .then(results => {
+      spinner.style.display = 'none';
+
+      const validResults = results.filter(r => r.data && r.data.current_condition && r.data.current_condition.length > 0);
+      if (validResults.length === 0) {
+        showMessage('Weather data not found for selected locations.');
+        return;
+      }
+
+      const avgTemp = Math.round(validResults.reduce((sum, r) => sum + parseInt(r.data.current_condition[0].temp_C), 0) / validResults.length);
+      const avgHumidity = Math.round(validResults.reduce((sum, r) => sum + parseInt(r.data.current_condition[0].humidity), 0) / validResults.length);
+
+      document.getElementById('temperature').textContent = `${avgTemp}°C (Avg)`;
+      document.getElementById('location').textContent = `${locationName} (Average Climate)`;
+      document.getElementById('date').textContent = new Date().toLocaleString();
+      document.getElementById('description').textContent = `Humidity: ${avgHumidity}%`;
+
+      setDynamicBackground('clouds', avgTemp);
+      showMessage(`Showing average weather of ${locationName}.`);
+    })
+    .catch(() => {
+      spinner.style.display = 'none';
+      showMessage('API error. Check internet or API key.');
+    });
+}
+
+// Query World Weather Online API for single place (city, village, country capital)
+function getWeatherData(place) {
+  clearWeatherInfo();
+  const spinner = document.getElementById('loadingSpinner');
+  spinner.style.display = 'block';
+
+  fetch(`https://api.worldweatheronline.com/premium/v1/weather.ashx?key=${API_KEY}&q=${encodeURIComponent(place)}&format=json`)
     .then(res => res.json())
     .then(data => {
       spinner.style.display = 'none';
-      if (data.cod === 200) {
-        updateWeatherUI(data, displayName);
+      if (data.data && data.data.current_condition && data.data.current_condition.length > 0) {
+        updateWeatherUIWorldWeather(data.data.current_condition[0], place);
       } else {
-        showMessage('Weather data not found!');
+        showMessage('Place not found or no weather data.');
       }
     })
     .catch(() => {
@@ -63,32 +125,28 @@ function getWeather(lat, lon, displayName) {
     });
 }
 
-// 3️⃣ Update UI
-function updateWeatherUI(data, placeName) {
-  const temp = Math.round(data.main.temp);
-  const condition = data.weather[0].main.toLowerCase();
+function updateWeatherUIWorldWeather(conditionData, placeName) {
+  const temp = Math.round(conditionData.temp_C);
+  const humidity = conditionData.humidity;
+  const desc = conditionData.weatherDesc[0].value.toLowerCase();
 
   document.getElementById('temperature').textContent = `${temp}°C`;
   document.getElementById('location').textContent = placeName;
   document.getElementById('date').textContent = new Date().toLocaleString();
-  document.getElementById('weatherIcon').src = getIconForCondition(condition);
-  document.getElementById('weatherIcon').alt = condition;
-  document.getElementById('description').textContent = capitalize(data.weather[0].description);
+  document.getElementById('description').textContent = conditionData.weatherDesc[0].value;
 
-  document.getElementById('feelsLike').textContent = `Feels like: ${Math.round(data.main.feels_like)}°C`;
-  document.getElementById('humidity').textContent = `Humidity: ${data.main.humidity}%`;
-  document.getElementById('wind').textContent = `Wind: ${Math.round(data.wind.speed)} m/s`;
-  document.getElementById('visibility').textContent = `Visibility: ${(data.visibility / 1000).toFixed(1)} km`;
-  document.getElementById('uv').textContent = `UV Index: -`; // Optional
-  document.getElementById('pressure').textContent = `Pressure: ${data.main.pressure} hPa`;
+  document.getElementById('feelsLike').textContent = `Feels like: ${Math.round(conditionData.FeelsLikeC)}°C`;
+  document.getElementById('humidity').textContent = `Humidity: ${humidity}%`;
+  document.getElementById('wind').textContent = `Wind: ${conditionData.windspeedKmph} km/h`;
+  document.getElementById('visibility').textContent = `Visibility: ${conditionData.visibility} km`;
+  document.getElementById('uv').textContent = `UV Index: ${conditionData.uvIndex}`;
+  document.getElementById('pressure').textContent = `Pressure: ${conditionData.pressure} mb`;
 
-  // Dynamic background
-  setDynamicBackground(condition, temp);
+  setDynamicBackground(desc, temp);
 
-  showMessage(getMessageForCondition(condition, temp));
+  showMessage(getMessageForCondition(desc, temp));
 }
 
-// Clear previous info
 function clearWeatherInfo() {
   document.getElementById('temperature').textContent = '--°C';
   document.getElementById('location').textContent = 'Searching...';
@@ -104,17 +162,10 @@ function clearWeatherInfo() {
   document.getElementById('pressure').textContent = '';
 }
 
-// Show message
 function showMessage(msg) {
   document.getElementById('messageBox').textContent = msg;
 }
 
-// Capitalize helper
-function capitalize(text) {
-  return text.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
-}
-
-// Dynamic background
 function setDynamicBackground(condition, temp) {
   const bg = document.querySelector('.modern-bg');
   switch (condition) {
@@ -129,21 +180,6 @@ function setDynamicBackground(condition, temp) {
   }
 }
 
-// Weather icon helper
-function getIconForCondition(condition) {
-  switch (condition) {
-    case 'clear': return 'https://cdn-icons-png.flaticon.com/512/4814/4814716.png';
-    case 'clouds': return 'https://cdn-icons-png.flaticon.com/512/414/414825.png';
-    case 'rain': return 'https://cdn-icons-png.flaticon.com/512/1163/1163624.png';
-    case 'drizzle': return 'https://cdn-icons-png.flaticon.com/512/4984/4984363.png';
-    case 'thunderstorm': return 'https://cdn-icons-png.flaticon.com/512/1146/1146869.png';
-    case 'snow': return 'https://cdn-icons-png.flaticon.com/512/642/642102.png';
-    case 'mist': case 'fog': return 'https://cdn-icons-png.flaticon.com/512/4005/4005901.png';
-    default: return 'https://cdn-icons-png.flaticon.com/512/4814/4814716.png';
-  }
-}
-
-// Message helper
 function getMessageForCondition(condition, temp) {
   switch (condition) {
     case 'rain': return "It's rainy! Carry umbrella and stay safe.";
@@ -158,4 +194,8 @@ function getMessageForCondition(condition, temp) {
       if (temp <= 10) return "It's cold! Keep warm.";
       return "Enjoy the weather!";
   }
+}
+
+function capitalize(text) {
+  return text.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
 }
