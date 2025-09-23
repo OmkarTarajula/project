@@ -24,7 +24,7 @@ function getCoordinates(place) {
   spinner.style.display = 'block';
   clearWeatherInfo();
 
-  fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(place)}&limit=1&appid=${API_KEY}`)
+  fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(place)}&limit=10&appid=${API_KEY}`)
     .then(res => res.json())
     .then(data => {
       spinner.style.display = 'none';
