@@ -1,5 +1,5 @@
-const PRIMARY_API_KEY = '49240382e83b4bdbabc70751252309'; // World Weather Online
-const SECONDARY_API_KEY = 'your_openweathermap_api_key_here'; // Replace with your OpenWeatherMap API key
+const PRIMARY_API_KEY = '49240382e83b4bdbabc70751252309'; 
+const SECONDARY_API_KEY = 'eea67c7fdbf4a33763174e12e6a32d63'; 
 
 let locationsData = { countries: {}, continents: {} };
 
@@ -9,7 +9,7 @@ const cityInput = document.getElementById('cityInput');
 searchBtn.disabled = true;
 cityInput.disabled = true;
 
-// Load locations.json and then enable search and event listeners
+
 fetch('locations.json')
   .then(res => res.json())
   .then(data => {
@@ -105,7 +105,7 @@ function getMultipleLocationsWeather(locations, locationName) {
     });
 }
 
-// Primary API call (World Weather Online)
+
 function getWeatherDataPrimary(place, displayName) {
   clearWeatherInfo();
   const spinner = document.getElementById('loadingSpinner');
@@ -118,7 +118,7 @@ function getWeatherDataPrimary(place, displayName) {
       if (data.data && data.data.current_condition && data.data.current_condition.length > 0) {
         updateWeatherUIWorldWeather(data.data.current_condition[0], displayName);
       } else {
-        // fallback to secondary API if primary fails
+       
         getWeatherDataSecondary(place);
       }
     })
@@ -128,7 +128,7 @@ function getWeatherDataPrimary(place, displayName) {
     });
 }
 
-// Secondary API fallback (OpenWeatherMap)
+
 function getWeatherDataSecondary(place) {
   const spinner = document.getElementById('loadingSpinner');
   spinner.style.display = 'block';
