@@ -18,35 +18,22 @@ function handleSearch() {
   getCoordinates(place);
 }
 
+// 1️⃣ Get coordinates using OpenWeatherMap Geocoding API
 function getCoordinates(place) {
   const spinner = document.getElementById('loadingSpinner');
   spinner.style.display = 'block';
   clearWeatherInfo();
-  
+
   fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(place)}&limit=10&appid=${API_KEY}`)
     .then(res => res.json())
     .then(data => {
       spinner.style.display = 'none';
       if (data && data.length > 0) {
-        if(data.length === 1){
-          const { lat, lon, name, state, country } = data[0];
-          getWeather(lat, lon, `${name}${state ? ', ' + state : ''}, ${country}`);
-        } else {
-          // Multiple results found, show suggestions for user to pick
-          const suggestionsEl = document.getElementById('suggestions');
-          suggestionsEl.innerHTML = '';
-          data.forEach((item, index) => {
-            const li = document.createElement('li');
-            li.textContent = `${item.name}${item.state ? ', ' + item.state : ''}, ${item.country}`;
-            li.onclick = () => {
-              suggestionsEl.innerHTML = '';
-              getWeather(item.lat, item.lon, li.textContent);
-            };
-            suggestionsEl.appendChild(li);
-          });
-        }
+        const { lat, lon, name, state, country } = data[0];
+        const displayName = `${name}${state ? ', ' + state : ''}, ${country}`;
+        getWeather(lat, lon, displayName);
       } else {
-        showMessage('Place not found. Please try another name!');
+        showMessage('Place not found. Try nearby city or correct spelling.');
       }
     })
     .catch(() => {
@@ -54,7 +41,6 @@ function getCoordinates(place) {
       showMessage('API error. Check internet or API key.');
     });
 }
-
 
 // 2️⃣ Get weather using coordinates
 function getWeather(lat, lon, displayName) {
